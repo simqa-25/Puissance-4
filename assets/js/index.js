@@ -104,10 +104,9 @@
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-
-let currentPlayer = "red"; // Le joueur qui commence (rouge)
+let currentPlayer = "red";
 let gameOver = false;
-let gameMode = ""; // Mode de jeu: "humanVsHuman" ou "humanVsComputer"
+let gameMode = "";
 const cells = document.querySelectorAll(".cell");
 const messageElement = document.querySelector("#message");
 const replayButton = document.querySelector("#replayButton");
@@ -122,7 +121,9 @@ const humanVsComputerTab = document.querySelector("#humanVsComputer");
 
 // Pour sélectionner le mode de jeu
 humanVsHumanTab.addEventListener("click", () => selectGameMode("humanVsHuman"));
-humanVsComputerTab.addEventListener("click", () => selectGameMode("humanVsComputer"));
+humanVsComputerTab.addEventListener("click", () =>
+  selectGameMode("humanVsComputer")
+);
 
 function selectGameMode(mode) {
   document.querySelector(".tabButton.active")?.classList.remove("active");
@@ -138,63 +139,128 @@ function selectGameMode(mode) {
 // Paramètres de la grille (6 lignes et 7 colonnes)
 const rows = 6;
 const cols = 7;
-const winningCombinations = [];
 
-// Fonction pour ajouter une combinaison gagnante
-const addWinningCombination = (startRow, startCol, rowIncrement, colIncrement) => {
-  let combination = [];
-  for (let i = 0; i < 4; i++) {
-    combination.push((startRow + i * rowIncrement) * cols + (startCol + i * colIncrement));
+// Fonction pour générer les combinaisons gagnantes
+let generateWinningCombinations = () => {
+  let winningCombinations = [];
+
+  // Lignes horizontales
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col <= cols - 4; col++) {
+      winningCombinations.push([
+        row * cols + col,
+        row * cols + col + 1,
+        row * cols + col + 2,
+        row * cols + col + 3,
+      ]);
+    }
   }
-  winningCombinations.push(combination);
+
+  // Colonnes verticales
+  for (let col = 0; col < cols; col++) {
+    for (let row = 0; row <= rows - 4; row++) {
+      winningCombinations.push([
+        row * cols + col,
+        (row + 1) * cols + col,
+        (row + 2) * cols + col,
+        (row + 3) * cols + col,
+      ]);
+    }
+  }
+
+  // Diagonales descendantes (gauche en bas, droite en haut)
+  for (let row = 0; row <= rows - 4; row++) {
+    for (let col = 0; col <= cols - 4; col++) {
+      winningCombinations.push([
+        row * cols + col,
+        (row + 1) * cols + col + 1,
+        (row + 2) * cols + col + 2,
+        (row + 3) * cols + col + 3,
+      ]);
+    }
+  }
+
+  // Diagonales montantes (gauche en haut, droite en bas)
+  for (let row = 3; row < rows; row++) {
+    for (let col = 0; col <= cols - 4; col++) {
+      winningCombinations.push([
+        row * cols + col,
+        (row - 1) * cols + col + 1,
+        (row - 2) * cols + col + 2,
+        (row - 3) * cols + col + 3,
+      ]);
+    }
+  }
+
+  return winningCombinations;
 };
 
-// Lignes horizontales (gauche à droite)
-for (let row = 0; row < rows; row++) {
-  for (let col = 0; col <= cols - 4; col++) {
-    addWinningCombination(row, col, 0, 1);
+// Assignation des combinaisons gagnantes
+let winningCombinations = generateWinningCombinations();
+
+// Fonction pour obtenir les cellules d'une colonne donnée
+function getColumnCells(colIndex) {
+  let columnCells = [];
+  for (let row = 0; row < rows; row++) {
+    let index = row * cols + colIndex;
+    columnCells.push(cells[index]);
   }
+  return columnCells;
 }
 
-// Colonnes verticales (haut en bas)
-for (let col = 0; col < cols; col++) {
-  for (let row = 0; row <= rows - 4; row++) {
-    addWinningCombination(row, col, 1, 0);
-  }
-}
+// Fonction pour vérifier les combinaisons gagnantes
+function checkWinner(player) {
+  // Parcours toutes les combinaisons gagnantes
+  for (let i = 0; i < winningCombinations.length; i++) {
+    let combination = winningCombinations[i];
+    let isWinningCombination = true;
 
-// Diagonales descendantes (gauche en bas, droite en haut)
-for (let row = 0; row <= rows - 4; row++) {
-  for (let col = 0; col <= cols - 4; col++) {
-    addWinningCombination(row, col, 1, 1);
-  }
-}
+    // Vérifie chaque index dans la combinaison
+    for (let j = 0; j < combination.length; j++) {
+      let index = combination[j];
 
-// Diagonales montantes (gauche en haut, droite en bas)
-for (let row = 3; row < rows; row++) {
-  for (let col = 0; col <= cols - 4; col++) {
-    addWinningCombination(row, col, -1, 1);
+      // Si la couleur ne correspond pas au joueur, la combinaison n'est pas gagnante
+      if (cells[index].style.backgroundColor !== player) {
+        isWinningCombination = false;
+        break;
+      }
+    }
+
+    // Si une combinaison gagnante est trouvée, on renvoie true
+    if (isWinningCombination) {
+      return true;
+    }
   }
+
+  // Si aucune combinaison gagnante n'est trouvée, on renvoie false
+  return false;
 }
 
 // Fonction pour gérer les clics sur les cellules
 function handleCellClick(event) {
-  const cell = event.target;
-  const columnIndex = Array.from(cell.parentElement.children).indexOf(cell);  // Trouver l'index de la colonne
+  let cell = event.target;
+  let parent = cell.parentElement;
 
-  // Si le jeu est déjà terminé, on ne fait rien
-  if (gameOver) return;
+  // Trouver l'index de la colonne où la cellule a été cliquée
+  let columnIndex = -1;
+  for (let i = 0; i < parent.children.length; i++) {
+    if (parent.children[i] === cell) {
+      columnIndex = i;
+      break;
+    }
+  }
 
-  // Pour trouver la première cellule vide de la colonne
-  const columnCells = getColumnCells(columnIndex);
+  // Si le jeu est termine ou si la cellule est déjà occupée, on arrête l'action
+  if (gameOver || cell.style.backgroundColor !== "") return;
+
+  // Trouver la première cellule vide dans la colonne
+  let columnCells = getColumnCells(columnIndex);
   let emptyCell = null;
-
-  // Pour chercher la première cellule vide de bas en haut
   for (let row = rows - 1; row >= 0; row--) {
-    const currentCell = columnCells[row];
+    let currentCell = columnCells[row];
     if (currentCell.style.backgroundColor === "") {
       emptyCell = currentCell;
-      break; // Sortir dès qu'on trouve une cellule vide
+      break; // Pour sortir dès qu'on trouve une cellule vide
     }
   }
 
@@ -203,50 +269,31 @@ function handleCellClick(event) {
   // Pour remplir la cellule vide avec la couleur du joueur
   emptyCell.style.backgroundColor = currentPlayer;
 
-  // Vérifie si un joueur a gagné
+  // Vérifier si le joueur actuel a gagné
   if (checkWinner(currentPlayer)) {
     gameOver = true;
     messageElement.textContent = `${currentPlayer === "red" ? "Le joueur rouge" : "Le joueur jaune"} a gagné !`;
     replayButton.style.display = "inline-block";
   } else {
-    // Change de joueur
+    // Changer de joueur
     currentPlayer = currentPlayer === "red" ? "yellow" : "red";
     messageElement.textContent = `C'est au tour du joueur ${currentPlayer === "red" ? "rouge" : "jaune"}`;
 
-    // Si c'est le mode "humanVsComputer", faire jouer l'ordinateur après un délai
+    // Pour rajouter un delai a l'ordi pour genre il reflechit
     if (gameMode === "humanVsComputer" && currentPlayer === "yellow" && !gameOver) {
       setTimeout(computerMove, 500); // L'ordinateur joue après un délai
     }
   }
 }
 
-// Fonction pour obtenir les cellules d'une colonne donnée
-function getColumnCells(colIndex) {
-  const columnCells = [];
-  for (let row = 0; row < rows; row++) {
-    const index = row * cols + colIndex;
-    columnCells.push(cells[index]);
-  }
-  return columnCells;
-}
-
-// Fonction pour vérifier les combinaisons gagnantes
-function checkWinner(player) {
-  return winningCombinations.some((combination) => {
-    return combination.every((index) => {
-      return cells[index].style.backgroundColor === player;
-    });
-  });
-}
-
 // Fonction pour gérer le coup de l'ordinateur
 function computerMove() {
   if (gameOver) return; // Si le jeu est déjà terminé, l'ordinateur ne joue pas
 
-  // Trouve la première cellule vide dans une colonne choisie aléatoirement
-  const availableColumns = [];
+  // Pour trouver la première cellule vide dans une colonne choisie aléatoirement
+  let availableColumns = [];
   for (let col = 0; col < cols; col++) {
-    const columnCells = getColumnCells(col);
+    let columnCells = getColumnCells(col);
     let emptyCellFound = false;
     for (let row = rows - 1; row >= 0; row--) {
       if (columnCells[row].style.backgroundColor === "") {
@@ -267,8 +314,8 @@ function computerMove() {
   }
 
   // Choisis une colonne au hasard parmi les colonnes disponibles
-  const randomCol = availableColumns[randomize(0, availableColumns.length - 1)];
-  const columnCells = getColumnCells(randomCol);
+  let randomCol = availableColumns[randomize(0, availableColumns.length - 1)];
+  let columnCells = getColumnCells(randomCol);
   let emptyCell = null;
 
   // Cherche la première cellule vide de bas en haut
@@ -302,7 +349,9 @@ function resetGame() {
   gameOver = false;
   currentPlayer = "red";
   cells.forEach((cell) => (cell.style.backgroundColor = ""));
-  messageElement.textContent = `C'est au tour du joueur ${currentPlayer === "red" ? "rouge" : "jaune"}`;
+  messageElement.textContent = `C'est au tour du joueur ${
+    currentPlayer === "red" ? "rouge" : "jaune"
+  }`;
   replayButton.style.display = "none";
 }
 
@@ -310,3 +359,5 @@ function resetGame() {
 cells.forEach((cell) => {
   cell.addEventListener("click", handleCellClick);
 });
+
+
